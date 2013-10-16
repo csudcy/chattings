@@ -1,0 +1,12 @@
+{
+	"name": "chattings",
+	"version": "0.0.1",
+	"main": "app.js",
+	"author": "Nicholas Lee <csudcy@gmail.com>",
+	"license": "Unknown",
+	"dependencies": {
+		"express": "",
+		"socket.io":"",
+		"underscore":""
+	}
+}

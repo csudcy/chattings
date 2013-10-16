@@ -1,0 +1,201 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Chattings...</title>
+        <script src="http://localhost:4000/socket.io/socket.io.js"></script>
+        <script src="/static/js/jquery-2.0.3.js"></script>
+        <script>
+            window.onload = function() {
+                //Connect to the socket server...
+                var socket = io.connect('http://localhost:4000');
+
+                /***********************************\
+                *       SOCKET HANDLERS
+                \***********************************/
+
+                socket.on('login', function(data) {
+                    console.log('socket.on:login');
+                    //Check if we've logged in
+                    if (!data.success) {
+                        return $('#login_fail').html('Login failed: ' + data.reason).show();
+                    }
+                    //Get the list of rooms
+                    $('#login').hide();
+                    $('#main').show();
+                    socket.emit('room_list');
+                });
+
+                socket.on('room_list', function(data) {
+                    console.log('socket.on:room_list');
+                    var html = '<ul>';
+                    data.rooms.forEach(function(room) {
+                        html += '<li room_id="'+room.room_id+'" room_name="'+room.name+'">';
+                        html += room.name;
+                        html += '<button class="join_room">Join</button>'
+                        html += '</li>';
+                    });
+                    html += '</ul>';
+                    $('#rooms').html(html);
+                });
+
+                socket.on('room_join', function(data) {
+                    console.log('socket.on:room_join');
+                    //Create a chat button
+                    var html = ''
+                    html += '<label for="room_'+data.room_id+'">';
+                    html += data.name;
+                    html += '</label>';
+                    html += '<input type="radio" name="chat_select" class="chat_select" id="room_'+data.room_id+'" room_id="'+data.room_id+'"/>';
+                    $('#chat_buttons').append(html);
+
+                    //Create a chat window
+                    $('#chat_template')
+                        .clone()
+                        .removeAttr('id')
+                        .attr('room_id', data.room_id)
+                        .appendTo('#chat_windows');
+                    showChat(data.room_id);
+                });
+
+                socket.on('room_message', function(data) {
+                    console.log('socket.on:room_message');
+                    var html = '';
+                    html += data.timestamp;
+                    html += ': ';
+                    html += data.username;
+                    html += ': ';
+                    html += data.msg;
+                    html += '\n';
+                    $('.chat_room[room_id='+data.room_id+'] .chat_log pre').append(html);
+                })
+
+                /***********************************\
+                *       CLICK HANDLERS
+                \***********************************/
+
+                $('#do_login').click(function() {
+                    //Login now!
+                    console.log('Logging in...');
+                    $('#login_fail').hide();
+                    socket.emit(
+                        'login',
+                        {
+                            username: $('#username').val(),
+                            password: $('#password').val()
+                        });
+                })
+
+                $(document).on('click', '.join_room', function(e) {
+                    var room = $(e.currentTarget).parent(),
+                        room_id = room.attr('room_id');
+                    socket.emit(
+                        'room_join',
+                        {
+                            room_id: room_id
+                        });
+                });
+
+                $(document).on('click', '.chat_select', function(e) {
+                    var room_id = $(e.currentTarget).attr('room_id');
+                    showChat(room_id);
+                });
+
+                function showChat(room_id) {
+                    $('.chat_room').hide();
+                    $('.chat_room[room_id='+room_id+']').show();
+                    $('.chat_select[room_id='+room_id+']').attr('checked', true);
+                }
+
+                //Hide all other rooms chat_room
+            }
+        </script>
+
+        <style type="text/css">
+            /*Put style here!*/
+            .frame {
+                border: 1px solid black;
+                border-radius: 10px;
+                position: absolute;
+                top: 0px;
+                bottom: 0px;
+                left: 0px;
+                right: 0px;
+                margin: 5px;
+                padding: 5px;
+                background: white;
+            }
+            #login {
+            }
+            #main {
+                display: none;
+            }
+            #rooms {
+                width: 250px;
+            }
+            #chat {
+                left: 270px;
+            }
+            #chat_buttons {
+                height: 30px;
+            }
+            .chat_room {
+                top: 40px;
+            }
+            .chat_log {
+                bottom: 40px;
+                right: 260px;
+                overflow: scroll;
+            }
+            .chat_input {
+                top: initial;
+                bottom: 0px;
+                height: 30px;
+                right: 260px;
+            }
+            .chat_input input {
+                position: absolute;
+                left: 0px;
+                right: 0px;
+                margin: 5px;
+            }
+            .chat_users {
+                left: initial;
+                right: 0px;
+                width: 250px;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="login" class="frame">
+            <label for="username">Username: </label>
+            <input id="username" type="text" value="admin"/>
+            <br/>
+            <label for="password">Password: </label>
+            <input id="password" type="password" value="admin"/>
+            <br/>
+            <button id="do_login">Login</button>
+            <div id="login_fail" style="display:none;"></div>
+        </div>
+        <div id="main">
+            <div id="rooms" class="frame">
+                <li>Loading rooms...</li>
+            </div>
+            <div id="chat" class="frame">
+                <div id="chat_buttons" class="frame">
+
+                </div>
+                <div id="chat_windows">
+                    <div id="chat_template" class="frame chat_room" style="display: none;" data-check="1">
+                        <div class="frame chat_log">
+                            <pre></pre>
+                        </div>
+                        <div class="frame chat_input">
+                            <input/>
+                        </div>
+                        <div class="frame chat_users"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
