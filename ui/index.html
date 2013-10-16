@@ -13,33 +13,44 @@
                 *       SOCKET HANDLERS
                 \***********************************/
 
+                socket.on('error', function(data) {
+                    console.log('socket.on:error');
+                    $('#error')
+                        .stop(true, true)
+                        .hide()
+                        .html(data.reason)
+                        .show()
+                        .fadeOut(3000);
+                });
+
                 socket.on('login', function(data) {
                     console.log('socket.on:login');
-                    //Check if we've logged in
-                    if (!data.success) {
-                        return $('#login_fail').html('Login failed: ' + data.reason).show();
-                    }
-                    //Get the list of rooms
+                    //Give UI feedback
                     $('#login').hide();
                     $('#main').show();
+                    //Get the list of rooms
                     socket.emit('room_list');
                 });
 
                 socket.on('room_list', function(data) {
                     console.log('socket.on:room_list');
-                    var html = '<ul>';
+                    console.log(data);
                     data.rooms.forEach(function(room) {
-                        html += '<li room_id="'+room.room_id+'" room_name="'+room.name+'">';
-                        html += room.name;
-                        html += '<button class="join_room">Join</button>'
-                        html += '</li>';
+                        var room_item = $('#room_item_template')
+                            .clone()
+                            .removeAttr('id')
+                            .attr('room_id', room.room_id);
+                        room_item.find('.room_name').html(room.name);
+                        room_item.find('.room_description').html(room.description);
+                        room_item.find('.room_users').html(room.users.length + ' Users');
+                        room_item.find('.room_groups').html(room.groups.join(', ') || '&nbsp;');
+                        room_item.appendTo('#room_list');
                     });
-                    html += '</ul>';
-                    $('#rooms').html(html);
                 });
 
                 socket.on('room_join', function(data) {
                     console.log('socket.on:room_join');
+                    console.log(data);
                     //Create a chat button
                     var html = ''
                     html += '<label for="room_'+data.room_id+'">';
@@ -49,12 +60,17 @@
                     $('#chat_buttons').append(html);
 
                     //Create a chat window
-                    $('#chat_template')
+                    $('#chat_room_template')
                         .clone()
                         .removeAttr('id')
                         .attr('room_id', data.room_id)
                         .appendTo('#chat_windows');
                     showChat(data.room_id);
+                });
+
+                socket.on('user_join', function(data) {
+                    console.log('socket.on:user_join');
+                    console.log(data);
                 });
 
                 socket.on('room_message', function(data) {
@@ -85,7 +101,7 @@
                         });
                 })
 
-                $(document).on('click', '.join_room', function(e) {
+                $(document).on('click', '.room_join', function(e) {
                     var room = $(e.currentTarget).parent(),
                         room_id = room.attr('room_id');
                     socket.emit(
@@ -129,7 +145,17 @@
             #main {
                 display: none;
             }
-            #rooms {
+            #error {
+                display: none;
+                background-color: red;
+                top: initial;
+                bottom: 10px;
+                height: 200px;
+                left: initial;
+                right: 10px;
+                width: 250px;
+            }
+            #room_list {
                 width: 250px;
             }
             #chat {
@@ -163,6 +189,33 @@
                 right: 0px;
                 width: 250px;
             }
+
+            #room_item_template {
+                display: none;
+            }
+            .room_item {
+                position: relative;
+                top: initial;
+                bottom: initial;
+            }
+            .room_name {
+                font-weight: bold;
+                font-size: larger;
+            }
+            .room_users {
+                float: right;
+                font-size: smaller;
+            }
+            .room_description {
+            }
+            .room_groups {
+            }
+            .room_join {
+                right: 2px;
+                bottom: 2px;
+                position: absolute;
+            }
+
         </style>
     </head>
     <body>
@@ -177,15 +230,22 @@
             <div id="login_fail" style="display:none;"></div>
         </div>
         <div id="main">
-            <div id="rooms" class="frame">
-                <li>Loading rooms...</li>
+            <div id="room_list" class="frame">
+                <div id="room_item_template" class="frame room_item">
+                    <div class="room_users"># Users</div>
+                    <div class="room_name">Name</div>
+                    <div class="room_description">Description</div>
+                    <button class="room_join">Join</button>
+                    <div class="room_groups">Group 1, Group 2</div>
+                </div>
+
             </div>
             <div id="chat" class="frame">
                 <div id="chat_buttons" class="frame">
 
                 </div>
                 <div id="chat_windows">
-                    <div id="chat_template" class="frame chat_room" style="display: none;" data-check="1">
+                    <div id="chat_room_template" class="frame chat_room" style="display: none;" data-check="1">
                         <div class="frame chat_log">
                             <pre></pre>
                         </div>
@@ -197,5 +257,6 @@
                 </div>
             </div>
         </div>
+        <div id="error" class="frame"></div>
     </body>
 </html>

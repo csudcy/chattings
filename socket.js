@@ -59,18 +59,12 @@ add_room('test', 'Testing room', [admin_group])
 add_room('test2', 'Testing room 2', [admin_group])
 
 
-function post_message(room, username, msg) {
-    console.log(post_message);
-    var timestamp = (new Date()).toString();
+function post_message(room, type, data) {
+    data = data || {};
+    data.room_id = room.room_id;
+    data.timestamp = (new Date()).toString();
     room.users.forEach(function(user) {
-        user.socket.emit(
-            'room_message',
-            {
-                room_id: room.room_id,
-                username: username,
-                timestamp: timestamp,
-                msg: msg
-            });
+        user.socket.emit(type, data);
     });
 }
 
@@ -86,20 +80,18 @@ io.sockets.on('connection', function(socket) {
         if (possible_users.length !== 1) {
             console.log('Login fail - user "' + data.username + '" not found!');
             return socket.emit(
-                'login',
+                'error',
                 {
-                    success: false,
-                    reason: 'User "' + data.username + '" not found!'
+                    reason: 'Login failed: User "' + data.username + '" not found!'
                 });
         }
         var user = possible_users[0];
         if (user.password !== data.password) {
             console.log('Login fail - incorrect password!');
             return socket.emit(
-                'login',
+                'error',
                 {
-                    success: false,
-                    reason: 'Incorrect password!'
+                    reason: 'Login failed: Incorrect password!'
                 });
         }
         console.log('Login success!');
@@ -120,13 +112,14 @@ io.sockets.on('connection', function(socket) {
                     client_rooms.push({
                         room_id: room.room_id,
                         name: room.name,
-                        description: room.description
+                        description: room.description,
+                        users: _.pluck(room.users, 'username'),
+                        groups: _.pluck(room.groups, 'name')
                     });
                 });
             return socket.emit(
                 'room_list',
                 {
-                    success: true,
                     rooms: client_rooms
                 });
         })
@@ -134,25 +127,54 @@ io.sockets.on('connection', function(socket) {
 
         socket.on('room_join', function(data) {
             console.log('room_join...');
-            console.log(data);
             var room = _.findWhere(rooms, {room_id: data.room_id});
+            if (!room) {
+                return socket.emit(
+                    'error',
+                    {
+                        reason: 'Room Join failed: Cannot find room '+data.room_id+'!'
+                    });
+            }
+            if (_.intersection(room.groups, user.groups).length === 0) {
+                return socket.emit(
+                    'error',
+                    {
+                        reason: 'Room Join failed: You do not have permission to join this room!'
+                    });
+            }
+            //Let the user know they have joined & the current state of the room
             socket.emit(
                 'room_join',
                 {
                     room_id: room.room_id,
                     name: room.name,
+                    description: room.description,
                     users: _.pluck(room.users, 'username')
                 });
+            //Record that the user is in the room
             room.users.push(user);
-            post_message(room, 'SERVER', user.username + ' joined the room.');
+            //Let the room know that this user has joined
+            post_message(
+                room,
+                'user_join',
+                {
+                    user_id: user.user_id,
+                    username: user.username
+                }
+            );
+            //Just to test sending messages...
+            post_message(
+                room,
+                'room_message',
+                {
+                    username: 'SERVER',
+                    msg: 'Say hello to ' + user.username
+                }
+            );
         })
 
         //Now let the client know they are logged in
-        return socket.emit(
-            'login',
-            {
-                success: true
-            });
+        return socket.emit('login');
     };
     socket.on('login', login_listener);
 });
