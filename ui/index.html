@@ -39,12 +39,12 @@
                         var room_item = $('#room_item_template')
                             .clone()
                             .removeAttr('id')
-                            .attr('room_id', room.room_id);
+                            .attr('room_id', room.room_id)
+                            .appendTo('#room_list');
                         room_item.find('.room_name').html(room.name);
                         room_item.find('.room_description').html(room.description);
                         room_item.find('.room_users').html(room.users.length + ' Users');
                         room_item.find('.room_groups').html(room.groups.join(', ') || '&nbsp;');
-                        room_item.appendTo('#room_list');
                     });
                 });
 
@@ -52,24 +52,40 @@
                     console.log('socket.on:room_join');
                     console.log(data);
                     //Create a chat button
-                    var html = ''
-                    html += '<label for="room_'+data.room_id+'">';
-                    html += data.name;
-                    html += '</label>';
-                    html += '<input type="radio" name="chat_select" class="chat_select" id="room_'+data.room_id+'" room_id="'+data.room_id+'"/>';
-                    $('#chat_buttons').append(html);
+                    var chat_tab = $('#chat_tab_template')
+                        .clone()
+                        .removeAttr('id')
+                        .attr('room_id', data.room_id)
+                        .appendTo('#chat_list');
+                    chat_tab.find('.chat_name').html(data.name);
 
                     //Create a chat window
-                    $('#chat_room_template')
+                    var chat_room = $('#chat_room_template')
                         .clone()
                         .removeAttr('id')
                         .attr('room_id', data.room_id)
                         .appendTo('#chat_windows');
+
+                    //Show users
+                    data.users.forEach(function(user) {
+
+                    })
+
                     showChat(data.room_id);
+                });
+
+                socket.on('room_leave', function(data) {
+                    console.log('socket.on:room_leave');
+                    console.log(data);
                 });
 
                 socket.on('user_join', function(data) {
                     console.log('socket.on:user_join');
+                    console.log(data);
+                });
+
+                socket.on('user_leave', function(data) {
+                    console.log('socket.on:user_leave');
                     console.log(data);
                 });
 
@@ -102,8 +118,7 @@
                 })
 
                 $(document).on('click', '.room_join', function(e) {
-                    var room = $(e.currentTarget).parent(),
-                        room_id = room.attr('room_id');
+                    var room_id = $(e.currentTarget).closest('[room_id]').attr('room_id');
                     socket.emit(
                         'room_join',
                         {
@@ -112,14 +127,19 @@
                 });
 
                 $(document).on('click', '.chat_select', function(e) {
-                    var room_id = $(e.currentTarget).attr('room_id');
+                    var room_id = $(e.currentTarget).closest('[room_id]').attr('room_id');
                     showChat(room_id);
+                });
+
+                $(document).on('click', '.chat_close', function(e) {
+                    var room_id = $(e.currentTarget).closest('[room_id]').attr('room_id');
+                    console.log('chat_close:'+room_id);
                 });
 
                 function showChat(room_id) {
                     $('.chat_room').hide();
                     $('.chat_room[room_id='+room_id+']').show();
-                    $('.chat_select[room_id='+room_id+']').attr('checked', true);
+                    $('.chat_tab[room_id='+room_id+'] .chat_select').attr('checked', true);
                 }
 
                 //Hide all other rooms chat_room
@@ -161,7 +181,7 @@
             #chat {
                 left: 270px;
             }
-            #chat_buttons {
+            #chat_list {
                 height: 30px;
             }
             .chat_room {
@@ -170,7 +190,14 @@
             .chat_log {
                 bottom: 40px;
                 right: 260px;
+            }
+            .chat_log pre {
                 overflow: scroll;
+                position: absolute;
+                top: -7px;
+                bottom: -11px;
+                left: 7px;
+                right: 2px;
             }
             .chat_input {
                 top: initial;
@@ -216,6 +243,20 @@
                 position: absolute;
             }
 
+            #chat_tab_template {
+                display: none;
+            }
+            .chat_tab {
+                position: relative;
+                display: inline-block;
+                margin: 0px;
+                padding: 3px;
+                padding-right: 8px;
+            }
+            .chat_name {
+            }
+            .chat_select {
+            }
         </style>
     </head>
     <body>
@@ -231,18 +272,23 @@
         </div>
         <div id="main">
             <div id="room_list" class="frame">
-                <div id="room_item_template" class="frame room_item">
-                    <div class="room_users"># Users</div>
+                <div id="room_item_template" class="frame room_item" room_id="room_id">
+                    <span class="room_users"># Users</span>
                     <div class="room_name">Name</div>
                     <div class="room_description">Description</div>
                     <button class="room_join">Join</button>
                     <div class="room_groups">Group 1, Group 2</div>
                 </div>
-
             </div>
             <div id="chat" class="frame">
-                <div id="chat_buttons" class="frame">
-
+                <div id="chat_list" class="frame">
+                    <div id="chat_tab_template" class="frame chat_tab" room_id="room_id">
+                        <label>
+                            <input type="radio" name="chat_select" class="chat_select"/>
+                            <span class="chat_name">Name</span>
+                        </label>
+                        <button class="chat_close">x</button>
+                    </div>
                 </div>
                 <div id="chat_windows">
                     <div id="chat_room_template" class="frame chat_room" style="display: none;" data-check="1">
