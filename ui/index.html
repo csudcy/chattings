@@ -15,12 +15,19 @@
 
                 socket.on('error', function(data) {
                     console.log('socket.on:error');
+                    console.log(data);
                     $('#error')
                         .stop(true, true)
                         .hide()
                         .html(data.reason)
                         .show()
                         .fadeOut(3000);
+                });
+
+                socket.on('disconnect', function(data) {
+                    console.log('socket.on:disconnect');
+                    //Socket is disconnected, reload the window to start over
+                    window.location.reload(true);
                 });
 
                 socket.on('login', function(data) {
@@ -31,6 +38,30 @@
                     //Get the list of rooms
                     socket.emit('room_list');
                 });
+
+                socket.on('room_add', function(data) {
+                    console.log('socket.on:room_add');
+                    //TODO
+                    console.log(data);
+                });
+
+                socket.on('room_remove', function(data) {
+                    console.log('socket.on:room_remove');
+                    //TODO
+                    console.log(data);
+                });
+
+                socket.on('room_message', function(data) {
+                    console.log('socket.on:room_message');
+                    var html = '';
+                    html += data.timestamp;
+                    html += ': ';
+                    html += data.username;
+                    html += ': ';
+                    html += data.msg;
+                    html += '\n';
+                    $('.chat_room[room_id='+data.room_id+'] .chat_log pre').append(html);
+                })
 
                 socket.on('room_list', function(data) {
                     console.log('socket.on:room_list');
@@ -89,17 +120,6 @@
                     console.log(data);
                 });
 
-                socket.on('room_message', function(data) {
-                    console.log('socket.on:room_message');
-                    var html = '';
-                    html += data.timestamp;
-                    html += ': ';
-                    html += data.username;
-                    html += ': ';
-                    html += data.msg;
-                    html += '\n';
-                    $('.chat_room[room_id='+data.room_id+'] .chat_log pre').append(html);
-                })
 
                 /***********************************\
                 *       CLICK HANDLERS
