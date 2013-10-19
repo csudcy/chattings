@@ -173,78 +173,142 @@ io.sockets.on('connection', function(socket) {
         /**********************************\
         *   Helper functions
         \**********************************/
-        var room_join = function(room, after_login) {
-            /*
-            The current user is trying to join this room.
-            If after_login is true, this is the server trying to reconnect the user
-            to their previous rooms. Therefore:
-              * Dont throw errors
-              * Only allow the user to join if they are already in the room
-              * Dont add the user to the room again
-            */
+        function room_join(room, force) {
             //Check the user is not already in the room
-            if (_.findWhere(room.users, {user_id: user.user_id})) {
+            var room_user_index = room.users.indexOf(user);
+            if (room_user_index !== -1) {
                 //User already exists in the room
-                if (!after_login) {
+                if (force) {
+                    room.users.pop(room_user_index);
+                } else {
                     return socket.emit(
                         'error',
                         {
-                            reason: 'Room Join failed: You are already in that room!'
+                            reason: 'Room Join failed: You are already in "'+room.name+'"!'
                         });
-                }
-            } else {
-                //User doesnt exist in the room
-                if (after_login) {
-                    return;
                 }
             }
+
             //Check the user has permission
             if (_.intersection(room.groups, user.groups).length === 0) {
-                if (!after_login) {
-                    socket.emit(
-                        'error',
-                        {
-                            reason: 'Room Join failed: You do not have permission to join this room!'
-                        });
-                }
+                socket.emit(
+                    'error',
+                    {
+                        reason: 'Room Join failed: You do not have permission to join "'+room.name+'"!'
+                    });
                 return;
             }
 
             //Let the user know they have joined & the current state of the room
+            var room_users = _.map(room.users, function(user) {
+                return _.pick(user, 'user_id', 'username');
+            });
             socket.emit(
                 'room_join',
                 {
                     room_id: room.room_id,
                     name: room.name,
                     description: room.description,
-                    users: _.pluck(room.users, 'username')
+                    users: room_users
                 });
+
             //Record that the user is in the room
-            if (!after_login) {
-                room.users.push(user);
+            room.users.push(user);
+            if (user.rooms.indexOf(room) === -1) {
+                user.rooms.push(room);
             }
+
             //Let the room know that this user has joined
             post_message(
                 room,
                 'user_join',
                 {
-                    user_id: user.user_id,
-                    username: user.username
+                    user: {
+                        user_id: user.user_id,
+                        username: user.username
+                    }
                 }
             );
+
             //Just to test sending messages...
             post_message(
                 room,
                 'room_message',
                 {
+                    user_id: 0,
                     username: 'SERVER',
                     msg: 'Say hello to ' + user.username
                 }
             );
         };
 
+        function room_leave(room, force) {
+            //Check the user is not already in the room
+            var room_user_index = room.users.indexOf(user);
+            if (room_user_index !== -1) {
+                //User already exists in the room
+                if (force) {
+                    room.users.pop(room_user_index);
+                } else {
+                    return socket.emit(
+                        'error',
+                        {
+                            reason: 'Room Join failed: You are already in "'+room.name+'"!'
+                        });
+                }
+            }
+
+            //Check the user has permission
+            if (_.intersection(room.groups, user.groups).length === 0) {
+                socket.emit(
+                    'error',
+                    {
+                        reason: 'Room Join failed: You do not have permission to join "'+room.name+'"!'
+                    });
+                return;
+            }
+
+            //Let the user know they have joined & the current state of the room
+            var room_users = _.map(room.users, function(user) {
+                return _.pick(user, 'user_id', 'username');
+            });
+            socket.emit(
+                'room_join',
+                {
+                    room_id: room.room_id,
+                    name: room.name,
+                    description: room.description,
+                    users: room_users
+                });
+
+            //Record that the user is in the room
+            room.users.pop(room.users.indexOf(user));
+            user.rooms.pop(user.rooms.indexOf(room));
+
+            //Let the room know that this user has joined
+            post_message(
+                room,
+                'user_leave',
+                {
+                    user: {
+                        user_id: user.user_id
+                    }
+                }
+            );
+
+            //Just to test sending messages...
+            post_message(
+                room,
+                'room_message',
+                {
+                    username: 'SERVER',
+                    msg: 'Say goodbye to ' + user.username
+                }
+            );
+        };
+
         /**********************************\
-        *   Socket functions
+        *   Socket handlers (general)
         \**********************************/
         //Now if the user disconnects, we might actually have to do something!
         socket.on('disconnect', function(data) {
@@ -278,50 +342,80 @@ io.sockets.on('connection', function(socket) {
             });
         });
 
-        //Now add the functions which are available after login
+        /**********************************\
+        *   Socket handlers (user)
+        \**********************************/
         socket.on('user_add', function(data) {
+            //Current user wants to add data.user
             console.log('socket.on:user_add');
             //TODO
             console.log(data);
         });
 
         socket.on('user_remove', function(data) {
+            //Current user wants to remove data.user_id
             console.log('socket.on:user_remove');
             //TODO
             console.log(data);
         });
 
         socket.on('user_message', function(data) {
+            //Current user wants to send a message to data.user_id
             console.log('socket.on:user_message');
             //TODO
             console.log(data);
         });
 
         socket.on('user_list', function(data) {
+            //Current user wants to get a list of users
             console.log('socket.on:user_list');
             //TODO
             console.log(data);
         });
 
+        /**********************************\
+        *   Socket handlers (room)
+        \**********************************/
         socket.on('room_add', function(data) {
+            //Current user wants to create data.room
             console.log('socket.on:room_add');
             //TODO
             console.log(data);
         });
 
         socket.on('room_remove', function(data) {
+            //Current user wants to delete data.room_id
             console.log('socket.on:room_remove');
             //TODO
             console.log(data);
         });
 
         socket.on('room_message', function(data) {
+            //Current user wants to send a message to data.room_id
             console.log('socket.on:room_message');
-            //TODO
-            console.log(data);
+            //Check the user is in the room
+            var room = _.findWhere(user.rooms, {room_id: data.room_id});
+            if (!room) {
+                return socket.emit(
+                    'error',
+                    {
+                        reason: 'Room Message failed: You are not in the room '+data.room_id+'!'
+                    });
+            }
+            //Send the message to everyone
+            post_message(
+                room,
+                'room_message',
+                {
+                    user_id: user.user_id,
+                    username: user.username,
+                    msg: data.msg
+                }
+            );
         });
 
         socket.on('room_list', function(data) {
+            //Current user wants a list of available rooms
             console.log('socket.on:room_list');
             //Give the client the list of rooms they can join
             var client_rooms = [];
@@ -346,6 +440,7 @@ io.sockets.on('connection', function(socket) {
         })
 
         socket.on('room_join', function(data) {
+            //Current user wants to join data.room_id
             console.log('socket.on:room_join');
             var room = _.findWhere(rooms, {room_id: data.room_id});
             //Check the room exists
@@ -359,6 +454,12 @@ io.sockets.on('connection', function(socket) {
             room_join(room);
         });
 
+        socket.on('room_leave', function(data) {
+            //Current user wants to leave data.room_id
+            console.log('socket.on:room_leave');
+
+        });
+
         /**********************************\
         *   Login & setup complete
         \**********************************/
@@ -366,7 +467,9 @@ io.sockets.on('connection', function(socket) {
         socket.emit('login');
 
         //Rejoin the rooms they were previously in
-        _.forEach(rooms, function(room) {
+        console.log('---------------------------------------');
+        console.log(user.rooms);
+        _.forEach(user.rooms, function(room) {
             room_join(room, true);
         });
     };

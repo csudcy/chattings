@@ -10,9 +10,41 @@
                 var socket = io.connect('http://localhost:4000');
 
                 /***********************************\
-                *       SOCKET HANDLERS
+                *       Helper functions
                 \***********************************/
 
+                function room_add(room) {
+                    var room_item = $('#room_item_template')
+                        .clone()
+                        .removeAttr('id')
+                        .attr('room_id', room.room_id)
+                        .appendTo('#room_list');
+                    room_item.find('.room_name').html(room.name);
+                    room_item.find('.room_description').html(room.description);
+                    room_item.find('.room_users').html(room.users.length + ' Users');
+                    room_item.find('.room_groups').html(room.groups.join(', ') || '&nbsp;');
+                }
+
+                function user_join(room_id, user) {
+                    console.log('user_join');
+                    var chat_room = $('.chat_room[room_id='+room_id+']');
+                    var user_item =  chat_room.find('.user_item_template')
+                        .clone()
+                        .removeClass('user_item_template')
+                        .attr('user_id', user.user_id)
+                        .appendTo(chat_room.find('.chat_users'));
+                    user_item.find('.user_username').html(user.username);
+                }
+
+                function showChat(room_id) {
+                    $('.chat_room').hide();
+                    $('.chat_room[room_id='+room_id+']').show();
+                    $('.chat_tab[room_id='+room_id+'] .chat_select').attr('checked', true);
+                }
+
+                /**********************************\
+                *   Socket handlers (general)
+                \**********************************/
                 socket.on('error', function(data) {
                     console.log('socket.on:error');
                     console.log(data);
@@ -39,16 +71,34 @@
                     socket.emit('room_list');
                 });
 
-                socket.on('room_add', function(data) {
-                    console.log('socket.on:room_add');
+                /**********************************\
+                *   Socket handlers (user)
+                \**********************************/
+                socket.on('user_join', function(data) {
+                    console.log('socket.on:user_join');
+                    user_join(data.room_id, data.user);
+                });
+
+                socket.on('user_leave', function(data) {
+                    console.log('socket.on:user_leave');
                     //TODO
                     console.log(data);
+                });
+
+                /**********************************\
+                *   Socket handlers (room)
+                \**********************************/
+                socket.on('room_add', function(data) {
+                    console.log('socket.on:room_add');
+                    //Add the room to the list
+                    room_add(data);
                 });
 
                 socket.on('room_remove', function(data) {
                     console.log('socket.on:room_remove');
                     //TODO
                     console.log(data);
+                    $('[room_id='+data.room_id+']').remove();
                 });
 
                 socket.on('room_message', function(data) {
@@ -65,23 +115,11 @@
 
                 socket.on('room_list', function(data) {
                     console.log('socket.on:room_list');
-                    console.log(data);
-                    data.rooms.forEach(function(room) {
-                        var room_item = $('#room_item_template')
-                            .clone()
-                            .removeAttr('id')
-                            .attr('room_id', room.room_id)
-                            .appendTo('#room_list');
-                        room_item.find('.room_name').html(room.name);
-                        room_item.find('.room_description').html(room.description);
-                        room_item.find('.room_users').html(room.users.length + ' Users');
-                        room_item.find('.room_groups').html(room.groups.join(', ') || '&nbsp;');
-                    });
+                    data.rooms.forEach(room_add);
                 });
 
                 socket.on('room_join', function(data) {
                     console.log('socket.on:room_join');
-                    console.log(data);
                     //Create a chat button
                     var chat_tab = $('#chat_tab_template')
                         .clone()
@@ -99,30 +137,23 @@
 
                     //Show users
                     data.users.forEach(function(user) {
+                        user_join(data.room_id, user);
+                    });
 
-                    })
-
+                    //Show the chat room
                     showChat(data.room_id);
                 });
 
                 socket.on('room_leave', function(data) {
                     console.log('socket.on:room_leave');
-                    console.log(data);
-                });
-
-                socket.on('user_join', function(data) {
-                    console.log('socket.on:user_join');
-                    console.log(data);
-                });
-
-                socket.on('user_leave', function(data) {
-                    console.log('socket.on:user_leave');
-                    console.log(data);
+                    //Remove UI stuff
+                    $('.chat_tab[room_id='+room_id+']').remove();
+                    $('.chat_room[room_id='+room_id+']').remove();
                 });
 
 
                 /***********************************\
-                *       CLICK HANDLERS
+                *       Click handlers
                 \***********************************/
 
                 $('#do_login').click(function() {
@@ -154,15 +185,37 @@
                 $(document).on('click', '.chat_close', function(e) {
                     var room_id = $(e.currentTarget).closest('[room_id]').attr('room_id');
                     console.log('chat_close:'+room_id);
+                    //Tell the server we're leaving
+                    socket.emit(
+                        'room_leave',
+                        {
+                            room_id: room_id
+                        });
                 });
 
-                function showChat(room_id) {
-                    $('.chat_room').hide();
-                    $('.chat_room[room_id='+room_id+']').show();
-                    $('.chat_tab[room_id='+room_id+'] .chat_select').attr('checked', true);
+                function send_message(e) {
+                    var jqe = $(e.currentTarget),
+                        room_id = jqe.closest('[room_id]').attr('room_id'),
+                        input = jqe.closest('.chat_input input');
+                    console.log('send_message:'+room_id+', '+input.val());
+                    //Send the message to the server
+                    socket.emit(
+                        'room_message',
+                        {
+                            room_id: room_id,
+                            msg: input.val()
+                        });
+                    //Clear the input
+                    input.val('');
                 }
 
-                //Hide all other rooms chat_room
+                $(document).on('keypress', '.chat_input input', function(e) {
+                    if (e.charCode === 13) {
+                        send_message(e);
+                    }
+                });
+
+                $(document).on('click', '.chat_input button', send_message);
             }
         </script>
 
@@ -235,6 +288,14 @@
                 left: initial;
                 right: 0px;
                 width: 250px;
+            }
+            .chat_users .user_item_template {
+                display: none;
+            }
+            .chat_users .user_item {
+                position: relative;
+            }
+            .chat_users .user_item .user_username {
             }
 
             #room_item_template {
@@ -311,14 +372,19 @@
                     </div>
                 </div>
                 <div id="chat_windows">
-                    <div id="chat_room_template" class="frame chat_room" style="display: none;" data-check="1">
+                    <div id="chat_room_template" class="frame chat_room" style="display: none;">
                         <div class="frame chat_log">
                             <pre></pre>
                         </div>
                         <div class="frame chat_input">
                             <input/>
+                            <button>Send</button>
                         </div>
-                        <div class="frame chat_users"></div>
+                        <div class="frame chat_users">
+                            <div class="user_item_template frame user_item">
+                                <span class="user_username">Username</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
