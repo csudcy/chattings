@@ -1,0 +1,123 @@
+.frame {
+    border: 1px solid black;
+    border-radius: 10px;
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    left: 0px;
+    right: 0px;
+    margin: 5px;
+    padding: 5px;
+    background: white;
+}
+#login {
+    top: 45%;
+    bottom: initial;
+    left: initial;
+    right: initial;
+    margin-left: 50%;
+    margin-right: 50%;
+}
+#main {
+    display: none;
+}
+#error {
+    display: none;
+    background-color: red;
+    top: initial;
+    bottom: 10px;
+    height: 200px;
+    left: initial;
+    right: 10px;
+    width: 250px;
+}
+#room_list {
+    width: 250px;
+}
+#chat {
+    left: 270px;
+}
+#chat_list {
+    height: 30px;
+}
+.chat_room {
+    top: 40px;
+}
+.chat_log {
+    bottom: 40px;
+    right: 260px;
+}
+.chat_log pre {
+    overflow: scroll;
+    position: absolute;
+    top: -7px;
+    bottom: -11px;
+    left: 7px;
+    right: 2px;
+}
+.chat_input {
+    top: initial;
+    bottom: 0px;
+    height: 30px;
+    right: 260px;
+}
+.chat_input input {
+    position: absolute;
+    left: 0px;
+    right: 0px;
+    margin: 5px;
+}
+.chat_users {
+    left: initial;
+    right: 0px;
+    width: 250px;
+}
+.chat_users .user_item_template {
+    display: none;
+}
+.chat_users .user_item {
+    position: relative;
+}
+.chat_users .user_item .user_username {
+}
+
+#room_item_template {
+    display: none;
+}
+.room_item {
+    position: relative;
+    top: initial;
+    bottom: initial;
+}
+.room_name {
+    font-weight: bold;
+    font-size: larger;
+}
+.room_users {
+    float: right;
+    font-size: smaller;
+}
+.room_description {
+}
+.room_groups {
+}
+.room_join {
+    right: 2px;
+    bottom: 2px;
+    position: absolute;
+}
+
+#chat_tab_template {
+    display: none;
+}
+.chat_tab {
+    position: relative;
+    display: inline-block;
+    margin: 0px;
+    padding: 3px;
+    padding-right: 8px;
+}
+.chat_name {
+}
+.chat_select {
+}
